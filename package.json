@@ -1,0 +1,30 @@
+{
+  "name": "tesla-plex-player",
+  "version": "1.0.0",
+  "description": "Lightweight, touch-first Plexamp-style music player for Tesla in-car browser over cellular",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "plex",
+    "plexamp",
+    "tesla",
+    "audio-player",
+    "cellular"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  }
+}
