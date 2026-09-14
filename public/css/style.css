@@ -847,8 +847,10 @@ body {
   pointer-events: none;
 }
 
-.reconnecting-banner.visible {
-  transform: translateX(-50%) translateY(0);
+.reconnecting-banner {
+  ...
+  transform: translateX(-50%) translateY(-150px);
+  ...
 }
 
 /* Responsive for smaller screens / vertical split view */
