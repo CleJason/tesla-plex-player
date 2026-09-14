@@ -43,7 +43,7 @@ Built with zero heavy front-end frameworks (vanilla HTML5, modern CSS, and ES6 J
 
 1. Clone or navigate to the repository:
    ```bash
-   cd radiant-bohr
+   cd tesla-plex-polayer
    ```
 
 2. Copy the environment configuration:
