@@ -831,7 +831,7 @@ body {
   position: fixed;
   top: calc(var(--header-height) + 12px);
   left: 50%;
-  transform: translateX(-50%) translateY(-60px);
+  transform: translateX(-50%) translateY(-150px);
   background: rgba(245, 158, 11, 0.95);
   color: #000;
   padding: 10px 24px;
@@ -845,12 +845,6 @@ body {
   z-index: 300;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
-}
-
-.reconnecting-banner {
-  ...
-  transform: translateX(-50%) translateY(-150px);
-  ...
 }
 
 /* Responsive for smaller screens / vertical split view */
