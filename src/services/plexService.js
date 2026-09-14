@@ -84,24 +84,25 @@ export class PlexService {
   }
 
   async getArtistAlbums(artistId) {
-    if (this.isMock) {
-      const albums = mockAlbums.filter(a => a.artistId === artistId);
-      return albums;
-    }
-
-    const data = await this.fetchPlex(`/library/metadata/${artistId}/children`);
-    const items = data?.MediaContainer?.Metadata || [];
-
-    return items.map(item => ({
-      id: String(item.ratingKey),
-      artistId: String(artistId),
-      artistTitle: item.parentTitle,
-      title: item.title,
-      year: item.year || null,
-      thumb: item.thumb ? `/api/thumb?path=${encodeURIComponent(item.thumb)}` : null,
-      trackCount: item.leafCount || 0
-    }));
+  if (this.isMock) {
+    const albums = mockAlbums.filter(a => a.artistId === artistId);
+    return albums;
   }
+
+  const sectionId = await this.getMusicSectionId();
+  const data = await this.fetchPlex(`/library/sections/${sectionId}/all?type=9&artist.id=${artistId}`);
+  const items = data?.MediaContainer?.Metadata || [];
+
+  return items.map(item => ({
+    id: String(item.ratingKey),
+    artistId: String(artistId),
+    artistTitle: item.parentTitle,
+    title: item.title,
+    year: item.year || null,
+    thumb: item.thumb ? `/api/thumb?path=${encodeURIComponent(item.thumb)}` : null,
+    trackCount: item.leafCount || 0
+  }));
+}
 
   async getAlbumTracks(albumId) {
     if (this.isMock) {
