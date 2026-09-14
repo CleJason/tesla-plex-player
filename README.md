@@ -43,7 +43,7 @@ Built with zero heavy front-end frameworks (vanilla HTML5, modern CSS, and ES6 J
 
 1. Clone or navigate to the repository:
    ```bash
-   cd tesla-plex-polayer
+   cd tesla-plex-player
    ```
 
 2. Copy the environment configuration:
