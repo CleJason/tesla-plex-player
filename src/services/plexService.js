@@ -181,7 +181,6 @@ export class PlexService {
     }
 
     const sectionId = await this.getMusicSectionId();
-    // Plex hub search within music section
     const data = await this.fetchPlex(`/hubs/search?query=${encodeURIComponent(query)}&sectionId=${sectionId}&limit=30`);
     const hubs = data?.MediaContainer?.Hub || [];
 
@@ -237,13 +236,11 @@ export class PlexService {
           candidateTracks = pl.trackIds.map(tid => mockTracks.find(t => t.id === tid)).filter(Boolean);
         }
       } else {
-        // Shuffle all
         candidateTracks = [...mockTracks];
       }
       return shuffleArray(candidateTracks);
     }
 
-    // Live Plex: check if container is artist, album, playlist, or all
     let tracks = [];
     try {
       if (containerId === 'all') {
@@ -265,13 +262,11 @@ export class PlexService {
         return shuffleArray(tracks);
       }
 
-      // Try fetching metadata for containerId to determine type
       const meta = await this.fetchPlex(`/library/metadata/${containerId}`);
       const item = meta?.MediaContainer?.Metadata?.[0];
       const type = item?.type;
 
       if (type === 'artist') {
-        // Get all leaves for artist
         const leaves = await this.fetchPlex(`/library/metadata/${containerId}/allLeaves`);
         const items = leaves?.MediaContainer?.Metadata || [];
         tracks = items.map((t, idx) => ({
@@ -291,11 +286,9 @@ export class PlexService {
       } else if (type === 'playlist') {
         tracks = await this.getPlaylistTracks(containerId);
       } else {
-        // Fallback: try children
         tracks = await this.getAlbumTracks(containerId);
       }
     } catch {
-      // If metadata lookup fails, try playlist items
       try {
         tracks = await this.getPlaylistTracks(containerId);
       } catch (err) {
@@ -333,7 +326,11 @@ export class PlexService {
     if (canDirectPlay && part?.key) {
       streamUrl = `${this.serverUrl}${part.key}?X-Plex-Token=${this.token}`;
     } else {
-      // Plex Universal Transcoder to MP3 for guaranteed compatibility in Tesla Chromium
+      // Plex Universal Transcoder to MP3 for guaranteed compatibility in Tesla Chromium.
+      // NOTE: this URL is loaded directly by the browser's <audio> tag, so none of the
+      // headers from getHeaders() are sent — every required X-Plex-* value must be a
+      // query param here. Missing X-Plex-Session-Identifier is what caused 400s.
+      const sessionId = `${this.clientIdentifier}-${trackId}`;
       const transcodeParams = new URLSearchParams({
         path: `/library/metadata/${trackId}`,
         mediaIndex: '0',
@@ -346,8 +343,14 @@ export class PlexService {
         audioQuality: String(config.audioBitrate),
         audioBoost: '100',
         hasMDE: '1',
+        location: 'lan',
         'X-Plex-Token': this.token,
-        'X-Plex-Client-Identifier': this.clientIdentifier
+        'X-Plex-Client-Identifier': this.clientIdentifier,
+        'X-Plex-Session-Identifier': sessionId,
+        'X-Plex-Product': 'Tesla Plex Player',
+        'X-Plex-Version': '1.0.0',
+        'X-Plex-Device': 'Tesla In-Car Browser',
+        'X-Plex-Platform': 'Tesla'
       });
       streamUrl = `${this.serverUrl}/music/:/transcode/universal/start.mp3?${transcodeParams.toString()}`;
     }
