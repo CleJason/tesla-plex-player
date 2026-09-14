@@ -73,6 +73,14 @@ Built with zero heavy front-end frameworks (vanilla HTML5, modern CSS, and ES6 J
 
 ## Deploying with Docker Compose (Home Server / Unraid)
 
+> **Note:** This image isn't published to a Docker registry. Clone this repo, then build it locally:
+> ```bash
+> git clone https://github.com/CleJason/tesla-plex-player.git
+> cd tesla-plex-player
+> docker build -t tesla-plex-player .
+> ```
+> Use `tesla-plex-player` as the Repository name in the Unraid steps below.
+
 ### 1. `docker-compose.yml`
 
 Create or use the included `docker-compose.yml`:
