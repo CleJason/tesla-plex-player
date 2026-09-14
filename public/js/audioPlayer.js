@@ -181,6 +181,7 @@ class AudioEngine {
         if (track) {
           this.retryCount = 0;
           this.isRetrying = false;
+          this.savedPosition = 0
           this.clearStallTimer();
           this.loadTrackStream(track, payload?.autoPlay ?? true);
         }
