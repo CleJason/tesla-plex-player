@@ -15,6 +15,10 @@ class AudioEngine {
     this.savedPosition = 0;
     this.isRetrying = false;
     this.savePositionInterval = null;
+    // Tracks whether the user (not the browser/car) paused, so we can auto-resume
+    // after Tesla suspends audio when the browser is minimized.
+    this.userPaused = true;
+    this.wasPlayingBeforeHide = false;
 
     this.setupAudioListeners();
     this.setupStateSubscriptions();
@@ -33,9 +37,12 @@ class AudioEngine {
       state.notify('playback_state_changed', { isPlaying: true, isBuffering: false });
       this.clearStallTimer();
       this.startPositionSaver();
+      this.userPaused = false;
+      this.updatePlaybackState('playing');
     });
 
     a.addEventListener('pause', () => {
+      this.updatePlaybackState('paused');
       state.isPlaying = false;
       state.currentTime = a.currentTime;
       state.saveToStorage();
@@ -59,6 +66,7 @@ class AudioEngine {
 
     a.addEventListener('loadedmetadata', () => {
       state.duration = a.duration || 0;
+      this.updatePositionState();
       state.notify('metadata_loaded', { duration: a.duration });
 
       // If restoring position from previous session or retry
@@ -236,6 +244,7 @@ class AudioEngine {
   }
 
   pause() {
+    this.userPaused = true;
     this.audio.pause();
   }
 
@@ -252,6 +261,7 @@ class AudioEngine {
       const targetTime = Math.max(0, Math.min(seconds, this.audio.duration));
       this.audio.currentTime = targetTime;
       state.currentTime = targetTime;
+      this.updatePositionState();
       this.savedPosition = targetTime;
       state.saveToStorage();
     }
@@ -290,12 +300,34 @@ class AudioEngine {
   }
 
   setupVisibilityHandling() {
+    // Tesla suspends page audio when the browser is swiped down/minimized.
+    // Remember we were playing and resume as soon as the page is shown again.
+    const resumeIfInterrupted = () => {
+      if (this.wasPlayingBeforeHide && !this.userPaused && this.audio.paused) {
+        console.log('[Audio] Resuming playback after browser was minimized');
+        this.play();
+      }
+      this.wasPlayingBeforeHide = false;
+    };
+    const markHidden = () => {
+      if (!this.userPaused) this.wasPlayingBeforeHide = true;
+      state.currentTime = this.audio.currentTime || state.currentTime;
+      state.saveToStorage();
+    };
+    window.addEventListener('pagehide', markHidden);
+    window.addEventListener('pageshow', resumeIfInterrupted);
+    document.addEventListener('freeze', markHidden);
+    document.addEventListener('resume', resumeIfInterrupted);
+    window.addEventListener('focus', resumeIfInterrupted);
+
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
+        markHidden();
         // Tab is hidden / screen dimmed: stop interval-based position saving
         this.stopPositionSaver();
       } else {
         // Tab restored: resume position saver if playing and update UI immediately
+        resumeIfInterrupted();
         if (state.isPlaying) {
           this.startPositionSaver();
         }
@@ -310,19 +342,46 @@ class AudioEngine {
   setupMediaSession() {
     if (!('mediaSession' in navigator)) return;
 
-    try {
-      navigator.mediaSession.setActionHandler('play', () => this.play());
-      navigator.mediaSession.setActionHandler('pause', () => this.pause());
-      navigator.mediaSession.setActionHandler('previoustrack', () => state.prevTrack());
-      navigator.mediaSession.setActionHandler('nexttrack', () => state.nextTrack());
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined) {
-          this.seek(details.seekTime);
-        }
-      });
-    } catch (e) {
-      console.warn('MediaSession action handler registration issue:', e);
+    const handlers = {
+      play: () => this.play(),
+      pause: () => this.pause(),
+      // Tesla's now-playing card exposes "stop"; treat it as pause so the queue survives
+      stop: () => this.pause(),
+      previoustrack: () => state.prevTrack(),
+      nexttrack: () => state.nextTrack(),
+      seekbackward: (d) => this.seek((this.audio.currentTime || 0) - (d.seekOffset || 10)),
+      seekforward: (d) => this.seek((this.audio.currentTime || 0) + (d.seekOffset || 10)),
+      seekto: (d) => { if (d.seekTime !== undefined) this.seek(d.seekTime); }
+    };
+    // Register each separately so one unsupported action doesn't drop the rest
+    for (const [action, fn] of Object.entries(handlers)) {
+      try {
+        navigator.mediaSession.setActionHandler(action, fn);
+      } catch (e) {
+        console.warn(`MediaSession action "${action}" not supported:`, e);
+      }
     }
+  }
+
+  updatePlaybackState(value) {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.playbackState = value;
+    } catch (e) {}
+    this.updatePositionState();
+  }
+
+  updatePositionState() {
+    if (!('mediaSession' in navigator) || !navigator.mediaSession.setPositionState) return;
+    const duration = this.audio.duration;
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({
+        duration,
+        playbackRate: this.audio.playbackRate || 1,
+        position: Math.min(Math.max(0, this.audio.currentTime || 0), duration)
+      });
+    } catch (e) {}
   }
 
   updateMediaSession(track) {
@@ -331,10 +390,12 @@ class AudioEngine {
     try {
       const artwork = [];
       if (track.thumb) {
+        // Absolute URLs: some car/OS media UIs can't resolve relative artwork paths
+        const src = new URL(track.thumb, window.location.href).href;
         artwork.push(
-          { src: track.thumb, sizes: '96x96', type: 'image/jpeg' },
-          { src: track.thumb, sizes: '256x256', type: 'image/jpeg' },
-          { src: track.thumb, sizes: '512x512', type: 'image/jpeg' }
+          { src, sizes: '96x96' },
+          { src, sizes: '256x256' },
+          { src, sizes: '512x512' }
         );
       }
 
@@ -344,6 +405,9 @@ class AudioEngine {
         album: track.albumTitle || '',
         artwork
       });
+      // Re-assert handlers after metadata changes; some Chromium builds only
+      // surface next/previous buttons when handlers are present with active metadata.
+      this.setupMediaSession();
     } catch (e) {
       console.warn('Failed to update MediaSession metadata:', e);
     }
