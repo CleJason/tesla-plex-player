@@ -177,10 +177,20 @@ router.get('/stream/:trackId', async (req, res, next) => {
       fetchHeaders['Range'] = req.headers.range;
     }
 
-    const plexResponse = await fetch(streamInfo.streamUrl, {
+    let plexResponse = await fetch(streamInfo.streamUrl, {
       headers: fetchHeaders,
       signal: abortController.signal
     });
+
+    // Transcoder failed (some Plex servers return 400): play the original file instead
+    if (!plexResponse.ok && streamInfo.fallbackUrl) {
+      console.warn(`[Stream] Transcode failed (${plexResponse.status}) for ${trackId}; falling back to direct play`);
+      plexResponse = await fetch(streamInfo.fallbackUrl, {
+        headers: fetchHeaders,
+        signal: abortController.signal
+      });
+      streamInfo.contentType = streamInfo.fallbackContentType;
+    }
 
     if (!plexResponse.ok && plexResponse.status !== 206) {
       const errText = await plexResponse.text().catch(() => '');

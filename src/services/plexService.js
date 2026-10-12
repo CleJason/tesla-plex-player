@@ -322,12 +322,14 @@ export class PlexService {
     const codec = media?.audioCodec?.toLowerCase() || '';
 
     const isFlac = codec === 'flac';
-    const canDirectPlay = (isFlac && config.losslessFlac) ||
-      (!config.transcodeAudio && (codec === 'mp3' || codec === 'aac' || codec === 'm4a' || isFlac));
+    // Codecs Tesla's Chromium browser can play natively without conversion
+    const browserPlayable = ['mp3', 'aac', 'm4a', 'flac', 'vorbis', 'ogg', 'opus'].includes(codec);
+    const canDirectPlay = (isFlac && config.losslessFlac) || (!config.transcodeAudio && browserPlayable);
+    const directUrl = part?.key ? `${this.serverUrl}${part.key}?X-Plex-Token=${this.token}` : null;
 
     let streamUrl;
-    if (canDirectPlay && part?.key) {
-      streamUrl = `${this.serverUrl}${part.key}?X-Plex-Token=${this.token}`;
+    if (canDirectPlay && directUrl) {
+      streamUrl = directUrl;
     } else {
       // Plex Universal Transcoder to MP3 for guaranteed compatibility in Tesla Chromium.
       // NOTE: this URL is loaded directly by the browser's <audio> tag, so none of the
@@ -367,7 +369,10 @@ export class PlexService {
       album: track.parentTitle || '',
       duration: track.duration,
       codec,
-      contentType: canDirectPlay && isFlac ? 'audio/flac' : null
+      contentType: canDirectPlay && isFlac ? 'audio/flac' : null,
+      // Used by the stream route if the Plex transcoder rejects the request
+      fallbackUrl: !canDirectPlay && browserPlayable ? directUrl : null,
+      fallbackContentType: isFlac ? 'audio/flac' : null
     };
   }
 
