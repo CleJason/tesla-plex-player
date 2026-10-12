@@ -8,6 +8,8 @@ export const config = {
   plexMusicSectionId: process.env.PLEX_MUSIC_SECTION_ID || null,
   transcodeAudio: process.env.TRANSCODE_AUDIO !== 'false',
   audioBitrate: parseInt(process.env.AUDIO_BITRATE || '192', 10),
+  // Stream FLAC files untouched (lossless) instead of converting to MP3. Uses ~5x more data.
+  losslessFlac: process.env.LOSSLESS_FLAC === 'true',
   clientIdentifier: process.env.PLEX_CLIENT_IDENTIFIER || 'tesla-plex-player',
   // Auto-enable mock mode if explicitly requested or if no Plex URL/token is configured
   useMockPlex: process.env.USE_MOCK_PLEX === 'true' || (!process.env.PLEX_SERVER_URL && !process.env.PLEX_TOKEN),

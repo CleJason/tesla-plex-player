@@ -58,6 +58,7 @@ Built with zero heavy front-end frameworks (vanilla HTML5, modern CSS, and ES6 J
    PLEX_TOKEN=your_secret_plex_token
    TRANSCODE_AUDIO=true
    AUDIO_BITRATE=192
+   LOSSLESS_FLAC=false
    ```
    *(Note: If `PLEX_SERVER_URL` or `PLEX_TOKEN` is left blank, the player automatically boots into Mock Mode with sample artists and tone playback so you can test immediately!)*
 
@@ -122,6 +123,7 @@ docker compose up -d --build
    - `PLEX_TOKEN`: Your Plex token.
    - `TRANSCODE_AUDIO`: `true`.
    - `AUDIO_BITRATE`: `192`.
+   - `LOSSLESS_FLAC`: `false` (set `true` to stream FLAC untouched; lossless but ~5x the data).
 5. Port: map container port `3355` to host port `3355`.
 
 ---

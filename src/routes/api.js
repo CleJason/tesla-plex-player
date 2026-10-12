@@ -200,7 +200,11 @@ router.get('/stream/:trackId', async (req, res, next) => {
       }
     }
 
-    if (!res.getHeader('content-type')) {
+    // Plex often serves original files as application/octet-stream; give the browser the real type
+    const upstreamType = res.getHeader('content-type');
+    if (streamInfo.contentType && (!upstreamType || String(upstreamType).includes('octet-stream'))) {
+      res.setHeader('Content-Type', streamInfo.contentType);
+    } else if (!upstreamType) {
       res.setHeader('Content-Type', 'audio/mpeg');
     }
 

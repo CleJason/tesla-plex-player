@@ -321,7 +321,9 @@ export class PlexService {
     const part = media?.Part?.[0];
     const codec = media?.audioCodec?.toLowerCase() || '';
 
-    const canDirectPlay = !config.transcodeAudio && (codec === 'mp3' || codec === 'aac' || codec === 'm4a');
+    const isFlac = codec === 'flac';
+    const canDirectPlay = (isFlac && config.losslessFlac) ||
+      (!config.transcodeAudio && (codec === 'mp3' || codec === 'aac' || codec === 'm4a' || isFlac));
 
     let streamUrl;
     if (canDirectPlay && part?.key) {
@@ -364,7 +366,8 @@ export class PlexService {
       artist: track.grandparentTitle || '',
       album: track.parentTitle || '',
       duration: track.duration,
-      codec
+      codec,
+      contentType: canDirectPlay && isFlac ? 'audio/flac' : null
     };
   }
 
